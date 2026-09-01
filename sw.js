@@ -1,14 +1,14 @@
 // アプリシェル(HTML/CSS/JS)をキャッシュし、ホーム画面追加時にオフラインでも開けるようにする。
 // GitHub APIやGoogle Fontsなど外部オリジンへのリクエストはキャッシュせず、常にネットワークへ流す。
-const CACHE_NAME = "signal-shell-v31";
+const CACHE_NAME = "signal-shell-v32";
 const APP_SHELL = [
   "./",
   "index.html",
   "exercises.html",
-  "style.css?v=31",
-  "sync.js?v=31",
-  "app.js?v=31",
-  "exercises.js?v=31",
+  "style.css?v=32",
+  "sync.js?v=32",
+  "app.js?v=32",
+  "exercises.js?v=32",
   "manifest.json",
   "favicon.svg",
 ];
@@ -31,12 +31,31 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// stale-while-revalidate: キャッシュがあればまず即返しつつ、裏でネットワークから
-// 取得して次回分を更新する。オフライン時はネットワーク失敗をキャッシュ結果で吸収する。
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin || event.request.method !== "GET") return;
 
+  // index.html/exercises.htmlはバージョンクエリを付けられない(直接開かれるURLのため)。
+  // stale-while-revalidateだと更新直後に「新しいJS + 古いHTML」が組み合わさり、
+  // 新しいJSが参照するDOM要素が無くて壊れることがあった。ナビゲーション(HTML取得)
+  // は常にネットワークを優先し、オフラインのときだけキャッシュにフォールバックする。
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // JS/CSSはバージョンクエリでキャッシュキーが変わるので、stale-while-revalidateで
+  // 問題ない: まずキャッシュを即返しつつ、裏でネットワークから次回分を更新する。
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const network = fetch(event.request)
