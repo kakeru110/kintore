@@ -36,7 +36,7 @@ python3 -m http.server 8000
 
 同期を使う場合:
 
-1. [トークン発行ページ](https://github.com/settings/personal-access-tokens/new) で、対象リポジトリを `kakeru110/hello-first-pr` のみに限定し、Permissions → Contents を Read and write にしてトークンを発行
+1. [トークン発行ページ](https://github.com/settings/personal-access-tokens/new) で、対象リポジトリを `kakeru110/kintore` のみに限定し、Permissions → Contents を Read and write にしてトークンを発行
 2. アプリの「GitHub同期の設定」にトークンを貼り付けて保存（同期したい端末それぞれで1回ずつ）
 3. 追加・削除・インポートのたびに `data/records.json` へ自動で反映され、他の端末を開いたときに最新の記録が読み込まれます
 
