@@ -4,7 +4,7 @@ window.MuscleSync = (function () {
 
   const GITHUB_TOKEN_KEY = "muscleLog.githubToken";
   const GITHUB_OWNER = "kakeru110";
-  const GITHUB_REPO = "hello-first-pr";
+  const GITHUB_REPO = "kintore";
   const GITHUB_BRANCH = "main";
 
   function getToken() {
