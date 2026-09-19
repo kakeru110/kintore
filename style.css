@@ -493,6 +493,22 @@ select:disabled {
   margin: 0;
 }
 
+.export-csv-btn {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--baseline);
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
 .day-card {
   border: 1px solid var(--border);
   border-radius: 4px;

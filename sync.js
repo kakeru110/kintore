@@ -160,6 +160,25 @@ window.MuscleSync = (function () {
     });
   }
 
+  // 同期時、リモートの内容で単純に上書きすると、直前のpushが何らかの理由で
+  // (通信断・アプリを閉じた等)失敗していた場合、このブラウザにしかない記録が
+  // 消えてしまう。idベースの和集合でマージして、ローカルにしかない項目を残す。
+  function mergeById(localList, remoteList) {
+    const byId = new Map();
+    remoteList.forEach((item) => byId.set(item.id, item));
+    localList.forEach((item) => {
+      if (!byId.has(item.id)) byId.set(item.id, item);
+    });
+    return Array.from(byId.values());
+  }
+
+  // 種目名(文字列)版の和集合マージ。
+  function mergeNames(localNames, remoteNames) {
+    const set = new Set(remoteNames);
+    localNames.forEach((n) => set.add(n));
+    return Array.from(set);
+  }
+
   return {
     GITHUB_OWNER,
     GITHUB_REPO,
@@ -176,5 +195,7 @@ window.MuscleSync = (function () {
     setTheme,
     effectiveTheme,
     initThemeToggle,
+    mergeById,
+    mergeNames,
   };
 })();
