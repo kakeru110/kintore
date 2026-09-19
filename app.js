@@ -118,6 +118,7 @@
   const filterExercise = document.getElementById("filter-exercise");
   const historyRange = document.getElementById("history-range");
   const historySearch = document.getElementById("history-search");
+  const exportCsvBtn = document.getElementById("export-csv-btn");
   const chartExercise = document.getElementById("chart-exercise");
   const chartRange = document.getElementById("chart-range");
   const historyList = document.getElementById("history-list");
@@ -263,6 +264,28 @@
   filterExercise.addEventListener("change", renderHistory);
   historyRange.addEventListener("change", renderHistory);
   historySearch.addEventListener("input", renderHistory);
+
+  // GitHub同期とは別に、GoogleドライブやExcelにも手元で保管できるようCSVで書き出す。
+  exportCsvBtn.addEventListener("click", function () {
+    const header = ["日付", "種目", "重量", "回数", "セット", "メモ"];
+    const rows = records
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((r) => [r.date, r.exercise, r.weight, r.reps, r.sets, r.memo || ""]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    // 先頭にBOMを付けないと、ExcelでUTF-8のCSVを開いたとき日本語が文字化けする。
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `muscle-training-records-${todayISO()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
   chartExercise.addEventListener("change", renderChart);
 
   // 有酸素の種目を選んだときは、フォームのラベルを「重量・回数」から
@@ -340,11 +363,19 @@
         recordsSha = sha;
         setSyncStatus(`GitHub同期: 有効（この端末の記録で初期化しました・${nowTime()}）`, false, true);
       } else {
-        records = result.data;
+        // 単純にリモートで上書きすると、直前のpushが失敗していた場合にこの
+        // ブラウザにしかない記録が消えてしまうため、idベースでマージする。
+        const merged = MuscleSync.mergeById(records, result.data);
+        const recovered = merged.length !== result.data.length;
+        records = merged;
         recordsSha = result.sha;
         saveRecords();
         renderAll();
-        setSyncStatus(`GitHub同期: 有効（最終同期 ${nowTime()}）`, false, true);
+        if (recovered) {
+          await pushToGithub(null);
+        } else {
+          setSyncStatus(`GitHub同期: 有効（最終同期 ${nowTime()}）`, false, true);
+        }
       }
     } catch (err) {
       setSyncStatus(`GitHub同期エラー: ${err.message}`, true);
@@ -400,10 +431,13 @@
         const sha = await MuscleSync.putFile(token, EXERCISES_PATH, exercises, null, "Initial exercise list sync");
         exercisesSha = sha;
       } else {
-        exercises = result.data.slice().sort(MuscleSync.compareExerciseNames);
+        const merged = MuscleSync.mergeNames(exercises, result.data);
+        const recovered = merged.length !== result.data.length;
+        exercises = merged.sort(MuscleSync.compareExerciseNames);
         exercisesSha = result.sha;
         saveExercises();
         renderAll();
+        if (recovered) await pushExercisesToGithub(null);
       }
     } catch (err) {
       // 種目リストの同期エラーは記録の同期ステータス表示を上書きしないよう静かに失敗させる。
@@ -455,10 +489,13 @@
         const sha = await MuscleSync.putFile(token, BODYWEIGHT_PATH, bodyweights, null, "Initial bodyweight sync");
         bodyweightsSha = sha;
       } else {
-        bodyweights = result.data.slice().sort((a, b) => a.date.localeCompare(b.date));
+        const merged = MuscleSync.mergeById(bodyweights, result.data);
+        const recovered = merged.length !== result.data.length;
+        bodyweights = merged.sort((a, b) => a.date.localeCompare(b.date));
         bodyweightsSha = result.sha;
         saveBodyweights();
         renderBodyweight();
+        if (recovered) await pushBodyweightToGithub(null);
       }
     } catch (err) {
       console.error("bodyweight sync failed", err);

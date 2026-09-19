@@ -189,11 +189,17 @@
         exercisesSha = sha;
         setSyncStatus(`GitHub同期: 有効（この端末の種目で初期化しました・${MuscleSync.nowTime()}）`, false, true);
       } else {
-        exercises = result.data.slice().sort(MuscleSync.compareExerciseNames);
+        const merged = MuscleSync.mergeNames(exercises, result.data);
+        const recovered = merged.length !== result.data.length;
+        exercises = merged.sort(MuscleSync.compareExerciseNames);
         exercisesSha = result.sha;
         saveExercises();
         render();
-        setSyncStatus(`GitHub同期: 有効（最終同期 ${MuscleSync.nowTime()}）`, false, true);
+        if (recovered) {
+          await pushExercisesToGithub(null);
+        } else {
+          setSyncStatus(`GitHub同期: 有効（最終同期 ${MuscleSync.nowTime()}）`, false, true);
+        }
       }
     } catch (err) {
       setSyncStatus(`GitHub同期エラー: ${err.message}`, true);
