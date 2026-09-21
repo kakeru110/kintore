@@ -509,6 +509,31 @@ select:disabled {
   white-space: nowrap;
 }
 
+.older-history {
+  margin-top: 4px;
+}
+
+.older-history summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  list-style: none;
+}
+
+.older-history summary::-webkit-details-marker {
+  display: none;
+}
+
+.older-history summary::before {
+  content: "▸ ";
+}
+
+.older-history[open] summary::before {
+  content: "▾ ";
+}
+
 .day-card {
   border: 1px solid var(--border);
   border-radius: 4px;
