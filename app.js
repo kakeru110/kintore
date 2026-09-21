@@ -703,7 +703,23 @@
     }
 
     const { byDate, dates } = groupRecordsByDateDesc(filtered);
-    historyList.innerHTML = dates.map((date) => buildDayCardHtml(date, byDate.get(date), false)).join("");
+    // 全期間表示だと日数分だけ行が縦に並んで長くなるため、直近2日分だけを
+    // 常に表示し、それより前は折りたたんでタップしたときだけ展開する。
+    const recentDates = dates.slice(0, 2);
+    const olderDates = dates.slice(2);
+
+    const recentHtml = recentDates.map((date) => buildDayCardHtml(date, byDate.get(date), false)).join("");
+    let olderHtml = "";
+    if (olderDates.length) {
+      const olderCardsHtml = olderDates.map((date) => buildDayCardHtml(date, byDate.get(date), false)).join("");
+      olderHtml = `
+        <details class="older-history">
+          <summary>それより前の記録を表示（${olderDates.length}日分）</summary>
+          ${olderCardsHtml}
+        </details>
+      `;
+    }
+    historyList.innerHTML = recentHtml + olderHtml;
   }
 
   // 日付ごとに、その日行った個々のセット(重量・回数の組)を配列で保持する。
