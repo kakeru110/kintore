@@ -76,7 +76,9 @@ window.MuscleSync = (function () {
     return respBody.content.sha;
   }
 
-  const CARDIO_PATTERN = /バイク|ジャンプ|ラン|エアロ|有酸素/;
+  // 「ランジ」は「ラン」を含むため、後ろに「ジ」が続く場合だけ除外する
+  // (そうしないと脚種目のランジが有酸素に誤分類されてしまう)。
+  const CARDIO_PATTERN = /バイク|ジャンプ|ラン(?!ジ)|エアロ|有酸素/;
 
   function isCardioExercise(name) {
     return CARDIO_PATTERN.test(name);
@@ -94,13 +96,16 @@ window.MuscleSync = (function () {
   // 種目名から部位を推測する(記録画面のセレクトのグループ分け、種目管理画面での
   // 追加時のプレビュー、2週間平均のグラフ集計など、複数箇所で共通して使う)。
   // 判定は上から優先度順、どれにも当てはまらなければ null(=「その他」)を返す。
+  // 肩・脚を胸・腕より先に判定するのは、「リバースフライ」「レッグカール」のように
+  // 部位を特定する語(リバース・レッグ)と動作名の語(フライ・カール)が両方含まれる
+  // 種目名で、より具体的な部位の語を優先するため。
   const MUSCLE_GROUPS = [
     { key: "cardio", label: "有酸素", test: isCardioExercise },
+    { key: "shoulder", label: "肩", test: (n) => /ミリタリー|ショルダー|リバースフライ|サイドレイズ|リアレイズ/.test(n) },
     { key: "chest", label: "胸", test: (n) => /ベンチ|チェストプレス|フライ/.test(n) },
-    { key: "back", label: "背中", test: (n) => /ロー|ラットプル|プルダウン|デッドリフト|懸垂/.test(n) },
-    { key: "shoulder", label: "肩", test: (n) => /ミリタリー|ショルダー/.test(n) },
-    { key: "arm", label: "腕", test: (n) => /カール|トライセプス/.test(n) },
+    { key: "back", label: "背中", test: (n) => /ロー|ラットプル|プルダウン|デッド|懸垂/.test(n) },
     { key: "leg", label: "脚", test: (n) => /スクワット|レッグ|ランジ/.test(n) },
+    { key: "arm", label: "腕", test: (n) => /カール|トライセプス/.test(n) },
   ];
 
   function muscleGroupForExercise(name) {
