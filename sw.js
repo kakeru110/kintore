@@ -1,14 +1,14 @@
 // アプリシェル(HTML/CSS/JS)をキャッシュし、ホーム画面追加時にオフラインでも開けるようにする。
 // GitHub APIやGoogle Fontsなど外部オリジンへのリクエストはキャッシュせず、常にネットワークへ流す。
-const CACHE_NAME = "signal-shell-v35";
+const CACHE_NAME = "signal-shell-v36";
 const APP_SHELL = [
   "./",
   "index.html",
   "exercises.html",
-  "style.css?v=35",
-  "sync.js?v=35",
-  "app.js?v=35",
-  "exercises.js?v=35",
+  "style.css?v=36",
+  "sync.js?v=36",
+  "app.js?v=36",
+  "exercises.js?v=36",
   "manifest.json",
   "favicon.svg",
 ];
