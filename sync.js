@@ -112,6 +112,22 @@ window.MuscleSync = (function () {
     return MUSCLE_GROUPS.find((g) => g.test(name)) || null;
   }
 
+  // 部位キーと表示ラベルの対応。種目追加時の手動選択・セレクトのグループ分け・
+  // 2週間平均の部位バッジ表示など、部位を扱う箇所すべてでこれを共通に使う。
+  const CATEGORY_ORDER = ["chest", "back", "shoulder", "arm", "leg", "cardio", "other"];
+  const CATEGORY_LABELS = { chest: "胸", back: "背中", shoulder: "肩", arm: "腕", leg: "脚", cardio: "有酸素", other: "その他" };
+
+  // 種目追加時に手動で選んだ部位(idベースではなく「種目名→部位キー」の
+  // 対応表)を優先し、無ければ名前からの自動推測にフォールバックする。
+  function categoryForName(name, overrides) {
+    const overrideKey = overrides && overrides[name];
+    if (overrideKey && CATEGORY_LABELS[overrideKey]) {
+      return { key: overrideKey, label: CATEGORY_LABELS[overrideKey] };
+    }
+    const found = muscleGroupForExercise(name);
+    return found ? { key: found.key, label: found.label } : null;
+  }
+
   // ライト/ダークの手動切り替え。未設定(""）ならOS設定(prefers-color-scheme)に従う。
   // <head>内のインラインスクリプトで先に data-theme を反映しているため、ここでは
   // トグルボタンの見た目と切り替え処理だけを担当する。
@@ -184,6 +200,12 @@ window.MuscleSync = (function () {
     return Array.from(set);
   }
 
+  // 「種目名→部位キー」のような単純なオブジェクトのマージ。キーが片方にしか
+  // 無ければ残し、両方にあればリモート優先(他端末の変更を取りこぼさないため)。
+  function mergeMap(localMap, remoteMap) {
+    return Object.assign({}, localMap, remoteMap);
+  }
+
   return {
     GITHUB_OWNER,
     GITHUB_REPO,
@@ -196,11 +218,15 @@ window.MuscleSync = (function () {
     isCardioExercise,
     compareExerciseNames,
     muscleGroupForExercise,
+    categoryForName,
+    CATEGORY_ORDER,
+    CATEGORY_LABELS,
     getTheme,
     setTheme,
     effectiveTheme,
     initThemeToggle,
     mergeById,
     mergeNames,
+    mergeMap,
   };
 })();

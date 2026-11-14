@@ -10,37 +10,50 @@
   const EXERCISES_PATH = "data/exercises.json";
   const RECORDS_KEY = "muscleLog.records";
   const RECORDS_PATH = "data/records.json";
+  const CATEGORIES_KEY = "muscleLog.exerciseCategories";
+  const CATEGORIES_PATH = "data/exercise-categories.json";
   const SEED_EXERCISES = ["アームカール", "シーテッドロー", "ショルダープレス", "スクワット", "スミスアームカール", "スミスサポーテッドロー", "スミススクワット", "スミスベンチプレス", "スミスベントオーバーロー", "スミスミリタリー", "ダンベルベンチ", "チェストプレス", "デッドリフト", "ペクトラルフライ", "ベンチプレス", "ベントオーバーロー", "ミリタリープレス", "ラットプルダウン", "レッグプレス", "懸垂", "ジャンプ", "バイク", "ラン"];
 
   let exercises = loadExercises().sort(MuscleSync.compareExerciseNames);
   let records = loadRecords();
+  let categories = loadCategories();
   let exercisesSha = null;
   let recordsSha = null;
+  let categoriesSha = null;
 
   const form = document.getElementById("exercise-form");
   const nameInput = document.getElementById("new-exercise-name");
+  const categorySelect = document.getElementById("new-exercise-category");
+  const categoryAutoHint = document.getElementById("category-auto-hint");
   const listEl = document.getElementById("exercise-list");
   const countEl = document.getElementById("exercise-count");
   const emptyEl = document.getElementById("exercise-empty");
   const syncStatus = document.getElementById("sync-status");
-  const categoryPreview = document.getElementById("category-preview");
-  const categoryPreviewLabel = document.getElementById("category-preview-label");
+  let categoryManuallySet = false;
 
   MuscleSync.initThemeToggle(document.getElementById("theme-toggle"));
 
   render();
 
-  nameInput.addEventListener("input", updateCategoryPreview);
+  nameInput.addEventListener("input", updateCategoryAuto);
+  categorySelect.addEventListener("change", function () {
+    categoryManuallySet = true;
+    categoryAutoHint.hidden = true;
+  });
 
-  function updateCategoryPreview() {
+  // 種目名の入力に合わせて、ユーザーがまだ手動で部位を選んでいない間だけ
+  // 自動推測した部位をセレクトに反映する(一度手動で選んだら上書きしない)。
+  function updateCategoryAuto() {
+    if (categoryManuallySet) return;
     const name = nameInput.value.trim();
     const found = name ? MuscleSync.muscleGroupForExercise(name) : null;
-    categoryPreview.hidden = !found;
-    categoryPreviewLabel.textContent = found ? found.label : "";
+    categorySelect.value = found ? found.key : "other";
+    categoryAutoHint.hidden = !name;
   }
 
   if (MuscleSync.getToken()) {
     syncFromGithub();
+    syncCategoriesFromGithub();
   } else {
     setSyncStatus("GitHub同期: 無効（記録画面でトークンを登録すると同期されます）");
   }
@@ -57,8 +70,14 @@
     exercises.sort(MuscleSync.compareExerciseNames);
     saveExercises();
     pushExercisesToGithub({ type: "add", name });
+
+    categories[name] = categorySelect.value;
+    saveCategories();
+    pushCategoriesToGithub({ type: "set", name, category: categorySelect.value });
+
     form.reset();
-    updateCategoryPreview();
+    categoryManuallySet = false;
+    updateCategoryAuto();
     render();
   });
 
@@ -69,6 +88,12 @@
       exercises = exercises.filter((n) => n !== name);
       saveExercises();
       pushExercisesToGithub({ type: "delete", name });
+
+      if (categories[name] !== undefined) {
+        delete categories[name];
+        saveCategories();
+        pushCategoriesToGithub({ type: "delete", name });
+      }
       render();
       return;
     }
@@ -111,6 +136,19 @@
     localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
   }
 
+  function loadCategories() {
+    try {
+      const raw = localStorage.getItem(CATEGORIES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function saveCategories() {
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+  }
+
   function render() {
     countEl.textContent = exercises.length;
     emptyEl.hidden = exercises.length > 0;
@@ -145,6 +183,14 @@
     exercises.sort(MuscleSync.compareExerciseNames);
     saveExercises();
     render();
+
+    if (categories[oldName] !== undefined) {
+      const category = categories[oldName];
+      delete categories[oldName];
+      categories[newName] = category;
+      saveCategories();
+      pushCategoriesToGithub({ type: "rename", from: oldName, to: newName });
+    }
 
     records = records.map((r) => (r.exercise === oldName ? Object.assign({}, r, { exercise: newName }) : r));
     saveRecords();
@@ -244,6 +290,68 @@
         }
       } else {
         setSyncStatus(`GitHub同期エラー: ${err.message}`, true);
+      }
+    }
+  }
+
+  // 部位の対応表は補助的なデータなので、同期エラーがあっても種目同期の
+  // ステータス表示は上書きしない(静かに失敗させる)。
+  async function syncCategoriesFromGithub() {
+    const token = MuscleSync.getToken();
+    if (!token) return;
+    try {
+      const result = await MuscleSync.getFile(token, CATEGORIES_PATH);
+      if (!result.exists) {
+        const sha = await MuscleSync.putFile(token, CATEGORIES_PATH, categories, null, "Initial exercise categories sync");
+        categoriesSha = sha;
+      } else {
+        const merged = MuscleSync.mergeMap(categories, result.data);
+        const recovered = Object.keys(merged).length !== Object.keys(result.data).length;
+        categories = merged;
+        categoriesSha = result.sha;
+        saveCategories();
+        if (recovered) await pushCategoriesToGithub(null);
+      }
+    } catch (err) {
+      console.error("categories sync failed", err);
+    }
+  }
+
+  function applyPendingCategoryChange(baseMap, pendingChange) {
+    const result = Object.assign({}, baseMap);
+    if (!pendingChange) return result;
+    if (pendingChange.type === "set") {
+      result[pendingChange.name] = pendingChange.category;
+    } else if (pendingChange.type === "delete") {
+      delete result[pendingChange.name];
+    } else if (pendingChange.type === "rename") {
+      if (result[pendingChange.from] !== undefined) {
+        result[pendingChange.to] = result[pendingChange.from];
+        delete result[pendingChange.from];
+      }
+    }
+    return result;
+  }
+
+  async function pushCategoriesToGithub(pendingChange) {
+    const token = MuscleSync.getToken();
+    if (!token) return;
+    try {
+      const sha = await MuscleSync.putFile(token, CATEGORIES_PATH, categories, categoriesSha, "Update exercise categories");
+      categoriesSha = sha;
+    } catch (err) {
+      if (err.conflict) {
+        try {
+          const result = await MuscleSync.getFile(token, CATEGORIES_PATH);
+          categories = applyPendingCategoryChange(result.data, pendingChange);
+          saveCategories();
+          const sha2 = await MuscleSync.putFile(token, CATEGORIES_PATH, categories, result.sha, "Update exercise categories (merged)");
+          categoriesSha = sha2;
+        } catch (err2) {
+          console.error("categories sync failed", err2);
+        }
+      } else {
+        console.error("categories sync failed", err);
       }
     }
   }

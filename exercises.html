@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=37">
 </head>
 <body>
 <header class="app-header">
@@ -37,7 +37,19 @@
       <div class="field-row">
         <label for="new-exercise-name">種目名</label>
         <input type="text" id="new-exercise-name" placeholder="例: スミスショルダープレス" required>
-        <p id="category-preview" class="import-help" hidden>推測した部位: <span id="category-preview-label"></span></p>
+      </div>
+      <div class="field-row">
+        <label for="new-exercise-category">部位</label>
+        <select id="new-exercise-category" required>
+          <option value="chest">胸</option>
+          <option value="back">背中</option>
+          <option value="shoulder">肩</option>
+          <option value="arm">腕</option>
+          <option value="leg">脚</option>
+          <option value="cardio">有酸素</option>
+          <option value="other">その他</option>
+        </select>
+        <p id="category-auto-hint" class="import-help" hidden>種目名から自動推測しました(変更できます)</p>
       </div>
       <button type="submit" class="btn-primary">追加する</button>
     </form>
@@ -55,7 +67,7 @@
   <p>GitHub同期の設定は<a href="index.html">記録画面</a>で行えます</p>
 </footer>
 
-<script src="sync.js?v=36"></script>
-<script src="exercises.js?v=36"></script>
+<script src="sync.js?v=37"></script>
+<script src="exercises.js?v=37"></script>
 </body>
 </html>
